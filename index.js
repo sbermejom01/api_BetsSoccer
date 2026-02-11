@@ -122,9 +122,11 @@ app.post('/api/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const avatar = "https://api.dicebear.com/9.x/open-peeps/svg?seed=" + username;
+
         const newUserRes = await db.query(
             'INSERT INTO users (username, email, password, points, avatar) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [username, email, hashedPassword, 0, "account_circle"]
+            [username, email, hashedPassword, 0, avatar]
         );
 
         const newUser = {
