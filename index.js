@@ -122,7 +122,7 @@ app.post('/api/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const avatar = "https://api.dicebear.com/9.x/open-peeps/svg?seed=" + username;
+        const avatar = "https://api.dicebear.com/9.x/pixel-art/svg?seed=" + username;
 
         const newUserRes = await db.query(
             'INSERT INTO users (username, email, password, points, avatar) VALUES ($1, $2, $3, $4, $5) RETURNING *',
@@ -176,8 +176,24 @@ app.post('/api/login', async (req, res) => {
 // --- ENDPOINTS DE PARTIDOS Y APUESTAS ---
 
 app.get('/api/matches', async (req, res) => {
-    // Evitamos tick pesado en peticiones simples para evitar timeout
-    res.json(sim.matches || []);
+    try {
+        let matches = sim.matches || [];
+
+        const teamsRes = await db.query('SELECT name, badge FROM teams');
+        const teamsMap = {};
+        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
+
+        const enrichedMatches = matches.map(m => ({
+            ...m,
+            homeBadge: teamsMap[m.home] || '/assets/default-shield.png',
+            awayBadge: teamsMap[m.away] || '/assets/default-shield.png'
+        }));
+
+        res.json(enrichedMatches);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error matches" });
+    }
 });
 
 app.post('/api/bets', authenticateToken, async (req, res) => {
@@ -235,8 +251,23 @@ app.get('/api/leaderboard', (req, res) => {
 });
 
 app.get('/api/league/standings', async (req, res) => {
-    await sim.tick();
-    res.json(sim.getStandings());
+    try {
+        await sim.tick();
+        let standings = sim.getStandings();
+
+        const teamsRes = await db.query('SELECT name, badge FROM teams');
+        const teamsMap = {};
+        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
+
+        const enrichedStandings = standings.map(s => ({
+            ...s,
+            badge: teamsMap[s.teamName] || '/assets/default-shield.png'
+        }));
+
+        res.json(enrichedStandings);
+    } catch (error) {
+        res.status(500).json({ error: "Error standings" });
+    }
 });
 
 app.get('/api/teams/:teamName/players', (req, res) => {
@@ -264,19 +295,38 @@ app.get('/api/league/results/:jornada', async (req, res) => {
     res.json(sim.allMatches.filter(m => m.jornada === jornada));
 });
 
-app.get('/api/bets/user/:userId', (req, res) => {
-    const userId = parseInt(req.params.userId);
-    const userBets = sim.db.bets.filter(b => Number(b.userId) === userId);
-    const enrichedBets = userBets.map(bet => {
-        const match = sim.allMatches.find(m => Number(m.id) === Number(bet.matchId));
-        return {
-            ...bet,
-            match: match || null,
-            pointsEarned: bet.pointsEarned || 0,
-            status: match && match.status === 'finished' ? (bet.pointsEarned > 0 ? 'win' : 'loss') : 'pending'
-        };
-    });
-    res.json(enrichedBets);
+app.get('/api/bets/user/:userId', async (req, res) => {
+    try {
+        const userId = parseInt(req.params.userId);
+        const userBets = sim.db.bets.filter(b => Number(b.userId) === userId);
+        
+        const teamsRes = await db.query('SELECT name, badge FROM teams');
+        const teamsMap = {};
+        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
+
+        const enrichedBets = userBets.map(bet => {
+            const match = sim.allMatches.find(m => Number(m.id) === Number(bet.matchId));
+            
+            let enrichedMatch = null;
+            if (match) {
+                enrichedMatch = {
+                    ...match,
+                    homeBadge: teamsMap[match.home],
+                    awayBadge: teamsMap[match.away]
+                };
+            }
+
+            return {
+                ...bet,
+                match: enrichedMatch,
+                pointsEarned: bet.pointsEarned || 0,
+                status: match && match.status === 'finished' ? (bet.pointsEarned > 0 ? 'win' : 'loss') : 'pending'
+            };
+        });
+        res.json(enrichedBets);
+    } catch (error) {
+        res.status(500).json({ error: "Error historial" });
+    }
 });
 
 app.get('/api/matches/:id', (req, res) => {
