@@ -178,18 +178,7 @@ app.post('/api/login', async (req, res) => {
 app.get('/api/matches', async (req, res) => {
     try {
         let matches = sim.matches || [];
-
-        const teamsRes = await db.query('SELECT name, badge FROM teams');
-        const teamsMap = {};
-        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
-
-        const enrichedMatches = matches.map(m => ({
-            ...m,
-            homeBadge: teamsMap[m.home] || '/assets/default-shield.png',
-            awayBadge: teamsMap[m.away] || '/assets/default-shield.png'
-        }));
-
-        res.json(enrichedMatches);
+        res.json(matches);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Error matches" });
@@ -254,17 +243,7 @@ app.get('/api/league/standings', async (req, res) => {
     try {
         await sim.tick();
         let standings = sim.getStandings();
-
-        const teamsRes = await db.query('SELECT name, badge FROM teams');
-        const teamsMap = {};
-        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
-
-        const enrichedStandings = standings.map(s => ({
-            ...s,
-            badge: teamsMap[s.teamName] || '/assets/default-shield.png'
-        }));
-
-        res.json(enrichedStandings);
+        res.json(standings);
     } catch (error) {
         res.status(500).json({ error: "Error standings" });
     }
@@ -300,25 +279,12 @@ app.get('/api/bets/user/:userId', async (req, res) => {
         const userId = parseInt(req.params.userId);
         const userBets = sim.db.bets.filter(b => Number(b.userId) === userId);
         
-        const teamsRes = await db.query('SELECT name, badge FROM teams');
-        const teamsMap = {};
-        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
-
         const enrichedBets = userBets.map(bet => {
             const match = sim.allMatches.find(m => Number(m.id) === Number(bet.matchId));
             
-            let enrichedMatch = null;
-            if (match) {
-                enrichedMatch = {
-                    ...match,
-                    homeBadge: teamsMap[match.home],
-                    awayBadge: teamsMap[match.away]
-                };
-            }
-
             return {
                 ...bet,
-                match: enrichedMatch,
+                match: match || null,
                 pointsEarned: bet.pointsEarned || 0,
                 status: match && match.status === 'finished' ? (bet.pointsEarned > 0 ? 'win' : 'loss') : 'pending'
             };
@@ -336,17 +302,7 @@ app.get('/api/matches/:id', async (req, res) => {
         
         if (!match) return res.status(404).json({ error: "Partido no encontrado" });
 
-        const teamsRes = await db.query('SELECT name, badge FROM teams');
-        const teamsMap = {};
-        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
-
-        const enrichedMatch = {
-            ...match,
-            homeBadge: teamsMap[match.home] || '/assets/default-shield.png',
-            awayBadge: teamsMap[match.away] || '/assets/default-shield.png'
-        };
-
-        res.json(enrichedMatch);
+        res.json(match);
     } catch (error) {
         console.error(error);
         res.status(500).json({ error: "Error server" });

@@ -2,26 +2,26 @@ require('dotenv').config();
 const { Pool } = require('pg');
 
 const TEAMS = [
-    { name: 'Real Madrid', strength: 92, badge: '/assets/pack-escudos/real_madrid.png' },
-    { name: 'FC Barcelona', strength: 90, badge: '/assets/pack-escudos/fc_barcelona.png' },
-    { name: 'Atlético Madrid', strength: 88, badge: '/assets/pack-escudos/atletico.png' },
-    { name: 'Real Sociedad', strength: 84, badge: '/assets/pack-escudos/real_sociedad.png' },
-    { name: 'Villarreal', strength: 82, badge: '/assets/pack-escudos/villareal.png' },
-    { name: 'Real Betis', strength: 81, badge: '/assets/pack-escudos/betis.png' },
-    { name: 'Athletic Club', strength: 83, badge: '/assets/pack-escudos/athletic.png' },
-    { name: 'Sevilla FC', strength: 80, badge: '/assets/pack-escudos/sevilla.png' },
-    { name: 'Osasuna', strength: 78, badge: '/assets/pack-escudos/osasuna.png' },
-    { name: 'Girona FC', strength: 85, badge: '/assets/pack-escudos/girona.png' },
-    { name: 'Rayo Vallecano', strength: 76, badge: '/assets/pack-escudos/rayo.png' },
-    { name: 'Celta de Vigo', strength: 77, badge: '/assets/pack-escudos/celta.png' },
-    { name: 'Valencia CF', strength: 79, badge: '/assets/pack-escudos/valencia.png' },
-    { name: 'Getafe CF', strength: 76, badge: '/assets/pack-escudos/getafe.png' },
-    { name: 'RCD Mallorca', strength: 75, badge: '/assets/pack-escudos/mallorca.png' },
-    { name: 'UD Las Palmas', strength: 74, badge: '/assets/pack-escudos/las_palmas.png' },
-    { name: 'Deportivo Alavés', strength: 73, badge: '/assets/pack-escudos/alaves.png' },
-    { name: 'Granada CF', strength: 70, badge: '/assets/pack-escudos/granada.png' },
-    { name: 'Cádiz CF', strength: 71, badge: '/assets/pack-escudos/cadiz.png' },
-    { name: 'UD Almería', strength: 69, badge: '/assets/pack-escudos/almeria.png' }
+    { name: 'Real Madrid', strength: 92 },
+    { name: 'FC Barcelona', strength: 90 },
+    { name: 'Atlético Madrid', strength: 88 },
+    { name: 'Real Sociedad', strength: 84 },
+    { name: 'Villarreal', strength: 82 },
+    { name: 'Real Betis', strength: 81 },
+    { name: 'Athletic Club', strength: 83 },
+    { name: 'Sevilla FC', strength: 80 },
+    { name: 'Osasuna', strength: 78 },
+    { name: 'Girona FC', strength: 85 },
+    { name: 'Rayo Vallecano', strength: 76 },
+    { name: 'Celta de Vigo', strength: 77 },
+    { name: 'Valencia CF', strength: 79 },
+    { name: 'Getafe CF', strength: 76 },
+    { name: 'RCD Mallorca', strength: 75 },
+    { name: 'UD Las Palmas', strength: 74 },
+    { name: 'Deportivo Alavés', strength: 73 },
+    { name: 'Granada CF', strength: 70 },
+    { name: 'Cádiz CF', strength: 71 },
+    { name: 'UD Almería', strength: 69 }
 ];
 
 
@@ -82,8 +82,7 @@ async function initDb() {
                 pp INTEGER DEFAULT 0,
                 gf INTEGER DEFAULT 0,
                 gc INTEGER DEFAULT 0,
-                pts INTEGER DEFAULT 0,
-                badge TEXT
+                pts INTEGER DEFAULT 0
             )
         `);
         console.log("- Tabla 'teams' lista.");
@@ -92,18 +91,13 @@ async function initDb() {
         const teamsCheck = await client.query('SELECT COUNT(*) FROM teams');
         
         if (parseInt(teamsCheck.rows[0].count) === 0) {
-            console.log("Sembrando equipos con escudos...");
+            console.log("Sembrando equipos...");
             for (const team of TEAMS) {
                 await client.query(
-                    'INSERT INTO teams (name, strength, badge) VALUES ($1, $2, $3)', 
-                    [team.name, team.strength, team.badge]
+                    'INSERT INTO teams (name, strength) VALUES ($1, $2)', 
+                    [team.name, team.strength]
                 );
             }
-        } else {
-             console.log("Actualizando rutas de escudos...");
-             for (const team of TEAMS) {
-                 await client.query('UPDATE teams SET badge = $1 WHERE name = $2', [team.badge, team.name]);
-             }
         }
 
         await client.query(`
