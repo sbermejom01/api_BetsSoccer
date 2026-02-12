@@ -329,10 +329,28 @@ app.get('/api/bets/user/:userId', async (req, res) => {
     }
 });
 
-app.get('/api/matches/:id', (req, res) => {
-    const match = sim.allMatches.find(m => m.id === parseInt(req.params.id));
-    if (!match) return res.status(404).json({ error: "Partido no encontrado" });
-    res.json(match);
+app.get('/api/matches/:id', async (req, res) => {
+    try {
+        const matchId = parseInt(req.params.id);
+        const match = sim.allMatches.find(m => m.id === matchId);
+        
+        if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+
+        const teamsRes = await db.query('SELECT name, badge FROM teams');
+        const teamsMap = {};
+        teamsRes.rows.forEach(t => teamsMap[t.name] = t.badge);
+
+        const enrichedMatch = {
+            ...match,
+            homeBadge: teamsMap[match.home] || '/assets/default-shield.png',
+            awayBadge: teamsMap[match.away] || '/assets/default-shield.png'
+        };
+
+        res.json(enrichedMatch);
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Error server" });
+    }
 });
 
 app.put('/api/users/:id', async (req, res) => {
