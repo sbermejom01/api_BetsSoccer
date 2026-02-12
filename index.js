@@ -122,11 +122,9 @@ app.post('/api/register', async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const avatar = "https://api.dicebear.com/9.x/pixel-art/svg?seed=" + username;
-
         const newUserRes = await db.query(
             'INSERT INTO users (username, email, password, points, avatar) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [username, email, hashedPassword, 0, avatar]
+            [username, email, hashedPassword, 0, "account_circle"]
         );
 
         const newUser = {
@@ -176,13 +174,8 @@ app.post('/api/login', async (req, res) => {
 // --- ENDPOINTS DE PARTIDOS Y APUESTAS ---
 
 app.get('/api/matches', async (req, res) => {
-    try {
-        let matches = sim.matches || [];
-        res.json(matches);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Error matches" });
-    }
+    // Evitamos tick pesado en peticiones simples para evitar timeout
+    res.json(sim.matches || []);
 });
 
 app.post('/api/bets', authenticateToken, async (req, res) => {
@@ -240,13 +233,8 @@ app.get('/api/leaderboard', (req, res) => {
 });
 
 app.get('/api/league/standings', async (req, res) => {
-    try {
-        await sim.tick();
-        let standings = sim.getStandings();
-        res.json(standings);
-    } catch (error) {
-        res.status(500).json({ error: "Error standings" });
-    }
+    await sim.tick();
+    res.json(sim.getStandings());
 });
 
 app.get('/api/teams/:teamName/players', (req, res) => {
@@ -274,39 +262,25 @@ app.get('/api/league/results/:jornada', async (req, res) => {
     res.json(sim.allMatches.filter(m => m.jornada === jornada));
 });
 
-app.get('/api/bets/user/:userId', async (req, res) => {
-    try {
-        const userId = parseInt(req.params.userId);
-        const userBets = sim.db.bets.filter(b => Number(b.userId) === userId);
-        
-        const enrichedBets = userBets.map(bet => {
-            const match = sim.allMatches.find(m => Number(m.id) === Number(bet.matchId));
-            
-            return {
-                ...bet,
-                match: match || null,
-                pointsEarned: bet.pointsEarned || 0,
-                status: match && match.status === 'finished' ? (bet.pointsEarned > 0 ? 'win' : 'loss') : 'pending'
-            };
-        });
-        res.json(enrichedBets);
-    } catch (error) {
-        res.status(500).json({ error: "Error historial" });
-    }
+app.get('/api/bets/user/:userId', (req, res) => {
+    const userId = parseInt(req.params.userId);
+    const userBets = sim.db.bets.filter(b => Number(b.userId) === userId);
+    const enrichedBets = userBets.map(bet => {
+        const match = sim.allMatches.find(m => Number(m.id) === Number(bet.matchId));
+        return {
+            ...bet,
+            match: match || null,
+            pointsEarned: bet.pointsEarned || 0,
+            status: match && match.status === 'finished' ? (bet.pointsEarned > 0 ? 'win' : 'loss') : 'pending'
+        };
+    });
+    res.json(enrichedBets);
 });
 
-app.get('/api/matches/:id', async (req, res) => {
-    try {
-        const matchId = parseInt(req.params.id);
-        const match = sim.allMatches.find(m => m.id === matchId);
-        
-        if (!match) return res.status(404).json({ error: "Partido no encontrado" });
-
-        res.json(match);
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Error server" });
-    }
+app.get('/api/matches/:id', (req, res) => {
+    const match = sim.allMatches.find(m => m.id === parseInt(req.params.id));
+    if (!match) return res.status(404).json({ error: "Partido no encontrado" });
+    res.json(match);
 });
 
 app.put('/api/users/:id', async (req, res) => {
