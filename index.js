@@ -60,7 +60,7 @@ const swaggerOptions = {
         },
         servers: [
             { url: `http://localhost:3000` },
-            { url: `https://bets-soccer-backend.vercel.app` }
+            { url: `https://api-bets-soccer.vercel.app` }
         ],
     },
     apis: [
